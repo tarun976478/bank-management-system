@@ -4,10 +4,9 @@ import com.code.tarun.dto.*;
 import com.code.tarun.service.AccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/customer/account")
@@ -30,5 +29,12 @@ public class AccountController {
             @RequestBody WithdrawRequest request) {
 
         return ResponseEntity.ok(accountService.withdraw(request));
+    }
+
+    @GetMapping("/transactions/{accountNumber}")
+    public ResponseEntity<List<TransactionResponse>> getTransactionHistory(
+            @PathVariable String accountNumber){
+
+        return ResponseEntity.ok(accountService.getTransactionHistory(accountNumber));
     }
 }

@@ -2,6 +2,9 @@ package com.code.tarun.service;
 
 import com.code.tarun.dto.*;
 import com.code.tarun.entity.*;
+import com.code.tarun.exception.AccountNotFoundException;
+import com.code.tarun.exception.InsufficientBalanceException;
+import com.code.tarun.exception.InvalidAmountException;
 import com.code.tarun.repository.AccountRepository;
 import com.code.tarun.repository.TransactionRepository;
 import com.code.tarun.repository.UserRepository;
@@ -12,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Random;
 
 @Service
@@ -24,7 +28,7 @@ public class AccountService {
 
     public AccountResponse createAccount(CreateAccountRequest request) {
         Users user = userRepository.findByName(request.getUsername())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new AccountNotFoundException("Account not found"));
 
         Account account = new Account();
 
@@ -61,11 +65,11 @@ public class AccountService {
 
     public DepositResponse deposit(DepositRequest request) {
         if (request.getAmount() <= 0) {
-            throw new RuntimeException("Deposit amount must be greater than zero.");
+            throw new InvalidAmountException("Amount must be greater than zero");
         }
 
         Account account = accountRepository.findByAccountNumber(request.getAccountNumber())
-                .orElseThrow(() -> new RuntimeException("Acoount not found"));
+                .orElseThrow(() -> new AccountNotFoundException("Account not found"));
         account.setBalance(
                 account.getBalance().add(BigDecimal.valueOf(request.getAmount()))
         );
@@ -93,14 +97,14 @@ public class AccountService {
 
     public WithdrawResponse withdraw(WithdrawRequest request) {
         if(request.getAmount() <= 0) {
-            throw new RuntimeException("Withdraw amount must be greater than zero.");
+            throw new InvalidAmountException("Amount must be greater than zero");
         }
 
         Account account = accountRepository.findByAccountNumber(request.getAccountNumber())
-                .orElseThrow(() -> new RuntimeException("Account not found"));
+                .orElseThrow(() -> new AccountNotFoundException("Account not found"));
 
         if(account.getBalance().compareTo(BigDecimal.valueOf(request.getAmount())) < 0) {
-            throw new RuntimeException("Insufficient balance.");
+           throw new InsufficientBalanceException("Insufficient balance");
         }
 
         account.setBalance(account.getBalance().subtract(BigDecimal.valueOf(request.getAmount())));
@@ -123,5 +127,23 @@ public class AccountService {
                 account.getBalance().doubleValue(),
                 "Amount withdrawn successfully."
         );
+    }
+
+    public List<TransactionResponse> getTransactionHistory(String accountNumber){
+
+        Account account = accountRepository.findByAccountNumber(accountNumber)
+                .orElseThrow(() -> new AccountNotFoundException("Account not found"));
+
+        List<Transaction> transactions =
+                transactionRepository.findByAccountOrderByTransactionTimeDesc(account);
+
+        return transactions.stream()
+                .map(transaction -> new TransactionResponse(
+                        transaction.getTransactionType().name(),
+                        transaction.getAmount().doubleValue(),
+                        transaction.getStatus().name(),
+                        transaction.getTransactionTime()
+                ))
+                .toList();
     }
 }
