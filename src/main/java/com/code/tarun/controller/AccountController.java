@@ -1,7 +1,6 @@
 package com.code.tarun.controller;
 
-import com.code.tarun.dto.AccountResponse;
-import com.code.tarun.dto.CreateAccountRequest;
+import com.code.tarun.dto.*;
 import com.code.tarun.service.AccountService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,4 +20,15 @@ public class AccountController {
         return ResponseEntity.ok(accountService.createAccount(request));
     }
 
+    @PostMapping("/deposit")
+    public ResponseEntity<DepositResponse> deposit(@RequestBody DepositRequest request) {
+        return ResponseEntity.ok(accountService.deposit(request));
+    }
+
+    @PostMapping("/withdraw")
+    public ResponseEntity<WithdrawResponse> withdraw(
+            @RequestBody WithdrawRequest request) {
+
+        return ResponseEntity.ok(accountService.withdraw(request));
+    }
 }
