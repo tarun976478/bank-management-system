@@ -37,4 +37,10 @@ public class AccountController {
 
         return ResponseEntity.ok(accountService.getTransactionHistory(accountNumber));
     }
+    @PostMapping("/transfer")
+    public ResponseEntity<TransferResponse> transfer(
+            @RequestBody TransferRequest request){
+
+        return ResponseEntity.ok(accountService.transferMoney(request));
+    }
 }

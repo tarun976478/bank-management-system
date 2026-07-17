@@ -4,6 +4,7 @@ import com.code.tarun.dto.*;
 import com.code.tarun.entity.*;
 import com.code.tarun.exception.AccountNotFoundException;
 import com.code.tarun.exception.InsufficientBalanceException;
+import com.code.tarun.exception.InvalidAccountException;
 import com.code.tarun.exception.InvalidAmountException;
 import com.code.tarun.repository.AccountRepository;
 import com.code.tarun.repository.TransactionRepository;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.cglib.core.Local;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -145,5 +147,68 @@ public class AccountService {
                         transaction.getTransactionTime()
                 ))
                 .toList();
+    }
+
+    @Transactional
+    public TransferResponse transferMoney(TransferRequest request) {
+        if(request.getAmount() <= 0) {
+            throw new InvalidAmountException("Transfer amount must be greater than zero.");
+        }
+
+        if(request.getFromAccountNumber().equals(request.getToAccountNumber())) {
+            throw new InvalidAccountException("Cannot transfer to the sane account.");
+        }
+
+        Account fromAccount = accountRepository
+                .findByAccountNumber(request.getFromAccountNumber())
+                .orElseThrow(() ->
+                        new AccountNotFoundException("Source account not found."));
+
+        Account toAccount = accountRepository
+                .findByAccountNumber(request.getToAccountNumber())
+                .orElseThrow(() ->
+                        new AccountNotFoundException("Destination account not found."));
+
+        BigDecimal amount = BigDecimal.valueOf(request.getAmount());
+
+        if(fromAccount.getBalance().compareTo(amount) < 0 ) {
+            throw new InsufficientBalanceException("Insufficient balance.");
+        }
+
+        //Deduct form source account
+
+        fromAccount.setBalance(fromAccount.getBalance().subtract(amount));
+
+        //Credit destination account
+        toAccount.setBalance(toAccount.getBalance().add(amount));
+
+        accountRepository.save(fromAccount);
+        accountRepository.save(toAccount);
+
+        //Transaction for source account
+        Transaction debitTransaction = new Transaction();
+        debitTransaction.setAccount(fromAccount);
+        debitTransaction.setAmount(amount);
+        debitTransaction.setTransactionType(TransactionType.WITHDRAW);
+        debitTransaction.setStatus(TransactionStatus.SUCCESS);
+        debitTransaction.setTransactionTime(LocalDateTime.now());
+
+        //Transaction for destination account
+        Transaction creditTransaction = new Transaction();
+        creditTransaction.setAccount(toAccount);
+        creditTransaction.setAmount(amount);
+        creditTransaction.setTransactionType(TransactionType.DEPOSIT);
+        creditTransaction.setStatus(TransactionStatus.SUCCESS);
+        creditTransaction.setTransactionTime(LocalDateTime.now());
+
+        transactionRepository.save(debitTransaction);
+        transactionRepository.save(creditTransaction);
+
+        return new TransferResponse(
+                fromAccount.getAccountNumber(),
+                toAccount.getAccountNumber(),
+                request.getAmount(),
+                "Money transferred successfully"
+        );
     }
 }
